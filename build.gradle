@@ -1,0 +1,44 @@
+plugins {
+	id 'org.springframework.boot' version '2.1.2.RELEASE'
+	id 'java'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+group = 'in.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
+ext {
+	set('springCloudVersion', 'Greenwich.RELEASE')
+}
+
+dependencies {
+	/*compile group: 'com.google.api-client', name: 'google-api-client', version: '1.21.0'
+	compile group: 'com.google.http-client', name: 'google-http-client-jackson2', version: '1.23.0'
+	compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'*/
+	
+	compile group: 'com.google.api-client', name: 'google-api-client', version: '1.23.0'
+	compile group: 'com.google.http-client', name: 'google-http-client-jackson2', version: '1.23.0'
+	//compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
+	compile group: 'com.google.http-client', name: 'google-http-client', version: '1.23.0'
+
+	compile group: 'com.google.cloud', name: 'google-cloud-vision', version: '1.59.0'
+	compile 'com.google.cloud:google-cloud-storage:1.37.1'
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	//implementation 'org.springframework.cloud:spring-cloud-gcp-starter-storage'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.batch:spring-batch-test'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
