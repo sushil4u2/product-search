@@ -1,4 +1,5 @@
 package in.example.search.services.impl;
+import in.example.model.CreateProductRequest;
 import in.example.search.services.ProductSearchService;
 
 import java.io.File;
@@ -12,6 +13,7 @@ import com.google.common.collect.Lists;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
@@ -38,30 +40,57 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.FieldMask;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.gax.paging.Page;
+import com.google.api.services.storage.model.Channel;
 
 
 @Component
 public class ProductSearchImpl implements ProductSearchService {
 
-	@Value("/Users/sushilkumawat/Downloads/juno-product-search-f0fbdfd1f015.json")
+	@Value("/Users/sushilkumawat/Project/Training/juno-product-search-f0fbdfd1f015.json")
 	String jsonPath;
 	@Value("juno-product-search")
 	String projectId;
-	@Value("asia-south1")
+	@Value("asia-east1")
 	String computeRegion;
-	@Value("")
+	@Value("5791bfb67155ae9b")
 	String productSetId;
 
+	static void authImplicit() {
+		 System.out.println("getting credentials via the environment variable GOOGLE_APPLICATION_CREDENTIALS.");
+		  // If you don't specify credentials when constructing the client, the client library will
+		  // look for credentials via the environment variable GOOGLE_APPLICATION_CREDENTIALS.
+		  Storage storage = StorageOptions.getDefaultInstance().getService();
+		  
+		  System.out.println("Buckets:");
+		  Page<Bucket> buckets = storage.list();
+		  for (Bucket bucket : buckets.iterateAll()) {
+		    System.out.println(bucket.toString());
+		  }
+		}
+	
+	static void authCompute() {
+		System.out.println("getting credentials service account credentials from the compute engine instance");
+		  // Explicitly request service account credentials from the compute engine instance.
+		  GoogleCredentials credentials = ComputeEngineCredentials.create();
+		  Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
 
+		  System.out.println("Buckets:");
+		  Page<Bucket> buckets = storage.list();
+		  for (Bucket bucket : buckets.iterateAll()) {
+		    System.out.println(bucket.toString());
+		  }
+		}
+	
+	
 	static void authExplicit(String jsonPath) {
-		System.out.println("gettig credentials");
+		System.out.println("gettig credentials using json path");
 		// You can specify a credential file by providing a path to GoogleCredentials.
 		// Otherwise credentials are read from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
 		try{
 			GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(jsonPath))
 					.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
-			System.out.println("connecting with credentials");
 			Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
 
 			System.out.println("Buckets:");
@@ -86,6 +115,13 @@ public class ProductSearchImpl implements ProductSearchService {
 	 */
 	public void createProductSet(String productSetId, String productSetDisplayName) {
 		authExplicit(jsonPath);
+		//authCompute();
+		//authImplicit();
+		/*GoogleCredential cred = GoogleCredential.FromFile("/path/to/credentials.json");
+		Channel channel = new Channel(
+		    ProductSearchClient.DefaultEndpoint.Host, ProductSearchClient.DefaultEndpoint.Port, cred.ToChannelCredentials());
+		ProductSearchClient client = ProductSearchClient.Create(channel);*/
+
 		try (ProductSearchClient client = ProductSearchClient.create()) {
 			// A resource that represents Google Cloud Platform location.
 			String formattedParent = ProductSearchClient.formatLocationName(projectId, computeRegion);
@@ -117,7 +153,7 @@ public class ProductSearchImpl implements ProductSearchService {
 	 * @param productCategory - Category of the product.
 	 * @throws IOException - on I/O errors.
 	 */
-	public void createProduct(String productId, String productDisplayName, String productCategory) throws IOException {
+	public void createProduct(CreateProductRequest createProductRequest) {
 		try (ProductSearchClient client = ProductSearchClient.create()) {
 
 			// A resource that represents Google Cloud Platform location.
@@ -126,13 +162,15 @@ public class ProductSearchImpl implements ProductSearchService {
 			// Multiple labels are also supported.
 			Product myProduct =
 					Product.newBuilder()
-					.setName(productId)
-					.setDisplayName(productDisplayName)
-					.setProductCategory(productCategory)
+					.setName(createProductRequest.getProductId())
+					.setDisplayName(createProductRequest.getProductDisplayName())
+					.setProductCategory(createProductRequest.getProductCategory())
 					.build();
-			Product product = client.createProduct(formattedParent, myProduct, productId);
+			Product product = client.createProduct(formattedParent, myProduct, createProductRequest.getProductId());
 			// Display the product information
 			System.out.println(String.format("Product name: %s", product.getName()));
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -145,8 +183,7 @@ public class ProductSearchImpl implements ProductSearchService {
 	 * @param productSetId - Id of the product set.
 	 * @throws IOException - on I/O errors.
 	 */
-	public void addProductToProductSet(String productId, String productSetId)
-			throws IOException {
+	public void addProductToProductSet(String productId, String productSetId) {
 		try (ProductSearchClient client = ProductSearchClient.create()) {
 
 			// Get the full path of the product set.
@@ -160,6 +197,8 @@ public class ProductSearchImpl implements ProductSearchService {
 			client.addProductToProductSet(formattedName, productPath);
 
 			System.out.println(String.format("Product added to product set."));
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -172,8 +211,7 @@ public class ProductSearchImpl implements ProductSearchService {
 	 * @param productLabels - Labels of the product.
 	 * @throws IOException - on I/O errors.
 	 */
-	public void updateProductLabels(String productId, String productLabels)
-			throws IOException {
+	public void updateProductLabels(String productId, String productLabels) {
 		try (ProductSearchClient client = ProductSearchClient.create()) {
 
 			// Get the full path of the product.
@@ -203,6 +241,8 @@ public class ProductSearchImpl implements ProductSearchService {
 			for (Product.KeyValue element : updatedProduct.getProductLabelsList()) {
 				System.out.println(String.format("%s: %s", element.getKey(), element.getValue()));
 			}
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -216,7 +256,7 @@ public class ProductSearchImpl implements ProductSearchService {
 	 * @param gcsUri - Google Cloud Storage path of the input image.
 	 * @throws IOException - on I/O errors.
 	 */
-	public void createReferenceImage(String productId, String referenceImageId, String gcsUri) throws IOException {
+	public void createReferenceImage(String productId, String referenceImageId, String gcsUri) {
 		try (ProductSearchClient client = ProductSearchClient.create()) {
 
 			// Get the full path of the product.
@@ -230,6 +270,8 @@ public class ProductSearchImpl implements ProductSearchService {
 			// Display the reference image information.
 			System.out.println(String.format("Reference image name: %s", image.getName()));
 			System.out.println(String.format("Reference image uri: %s", image.getUri()));
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -246,7 +288,7 @@ public class ProductSearchImpl implements ProductSearchService {
 	 *     color:red AND style:kids color:blue AND style:kids
 	 * @throws IOException - on I/O errors.
 	 */
-	public void getSimilarProductsFile(String productSetId, String productCategory, String filePath, String filter) throws IOException {
+	public void getSimilarProductsFile(String productSetId, String productCategory, String filePath, String filter) {
 		try (ImageAnnotatorClient queryImageClient = ImageAnnotatorClient.create()) {
 
 			// Get the full path of the product set.
@@ -297,6 +339,8 @@ public class ProductSearchImpl implements ProductSearchService {
 				System.out.println(String.format("Score(Confidence): %s", product.getScore()));
 				System.out.println(String.format("Image name: %s", product.getImage()));
 			}
+		} catch(IOException e) {
+			e.printStackTrace();
 		}
 	}
 

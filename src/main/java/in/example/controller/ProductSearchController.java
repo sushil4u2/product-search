@@ -7,8 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import in.example.model.CreateProductRequest;
 import in.example.search.services.ProductSearchService;
 
 @RestController
@@ -31,4 +33,10 @@ public class ProductSearchController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
+	
+	@PostMapping("/create-product")
+	public ResponseEntity<Void> createProduct(@RequestBody CreateProductRequest createProductRequest){
+		productSearchService.createProduct(createProductRequest);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 }
